@@ -158,7 +158,7 @@ AC_ARG_WITH([gpl-crypto], [AS_HELP_STRING([--with-gpl-crypto=[yes|no]], [Use GPL
 if test "xyes" = "x$gpl_crypto"; then
   PKG_CHECK_MODULES([GNUTLS], [gnutls >= $GNUTLS_REQUIRED])
   PKG_CHECK_MODULES([NETTLE], [nettle])
-  AC_DEFINE([USE_GPL_CRYPTO], 1, [Use GPL-compatible crypto libraries])
+  AC_DEFINE([USE_GPL_CRYPTO], 0, [Use GPL-compatible crypto libraries])
 else
   AC_CHECK_LIB([crypto], [SHA1_Init], [], [AC_MSG_ERROR([*** Unable to find openssl crypto library])])
   PKG_CHECK_MODULES([SSL], [openssl])

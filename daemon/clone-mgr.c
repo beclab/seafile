@@ -1365,6 +1365,7 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
     /* Delete orphan information in the db in case the repo was corrupt. */
     if (!repo)
         seaf_repo_manager_remove_repo_ondisk (seaf->repo_mgr, repo_id, FALSE);
+    
 
     ret = add_task_common (mgr, repo_id, repo_version,
                            repo_name, token, passwd,

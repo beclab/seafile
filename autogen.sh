@@ -98,7 +98,7 @@ aclocalinclude="$aclocalinclude -I m4"
 if test x"$MSYSTEM" = x"MINGW32"; then
     aclocalinclude="$aclocalinclude -I /mingw32/share/aclocal"
 elif test "$(uname)" = "Darwin"; then
-    aclocalinclude="$aclocalinclude -I /opt/local/share/aclocal"
+    aclocalinclude="$aclocalinclude -I /usr/local/share/aclocal"
 fi
 
 

@@ -86,6 +86,13 @@ struct _ConnectionPool {
 };
 typedef struct _ConnectionPool ConnectionPool;
 
+
+struct _AccountStore {
+    char *token;
+};
+
+typedef struct _AccountStore AccountStore;
+
 struct _HttpTxPriv {
     GHashTable *download_tasks;
     GHashTable *upload_tasks;
@@ -716,6 +723,47 @@ typedef size_t (*HttpRecvCallback) (void *, size_t, size_t, void *);
  * the server sometimes takes more than 45 seconds to calculate the result,
  * the client will time out.
  */
+
+static gboolean
+load_accounts (sqlite3_stmt *stmt, void *vdata)
+{
+    AccountStore *account = vdata;
+    const char *token;
+    token = (const char *)sqlite3_column_text (stmt, 0);
+    account->token = g_strdup(token);
+    return FALSE;
+}
+
+static int
+load_account_token_from_db (AccountStore *store)
+{
+    char *accounts_db_path = NULL;
+    sqlite3 *db = NULL;
+    char *sql;
+    int ret = 0;
+    accounts_db_path = g_build_filename (seaf->seaf_dir, "accounts.db", NULL);
+
+    if (sqlite_open_db (accounts_db_path, &db) < 0) {
+        seaf_warning ("Failed to open accounts.db\n");
+        ret = -1;
+        goto out;
+    }
+
+    sql = "SELECT token FROM Accounts ORDER BY lastVisited DESC";
+
+    if (sqlite_foreach_selected_row (db, sql, load_accounts, store) < 0) {
+        ret = -1;
+        goto out;
+    }
+
+out:
+    g_free (accounts_db_path);
+    if (db)
+        sqlite_close_db (db);
+    return ret;
+}
+
+
 static int
 http_get (CURL *curl, const char *url, const char *token,
           int *rsp_status, char **rsp_content, gint64 *rsp_size,
@@ -731,15 +779,21 @@ http_get (CURL *curl, const char *url, const char *token,
         curl_easy_setopt (curl, CURLOPT_STDERR, seafile_get_log_fp());
     }
 
-    headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
+    AccountStore *account = g_new0 (AccountStore, 1);
+    load_account_token_from_db(account);
 
+    headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
+    char *xauth_header =  g_strdup_printf ("X-Authorization: %s", account->token);
+    headers = curl_slist_append (headers, xauth_header);
+    g_free (xauth_header);
+    g_free(account);
     if (token) {
-//        token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
-//        headers = curl_slist_append (headers, token_header);
-//        g_free (token_header);
-        token_header = g_strdup_printf ("X-Authorization: %s", token);
-        headers = curl_slist_append (headers, token_header);
-        g_free (token_header);
+       token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
+       headers = curl_slist_append (headers, token_header);
+       g_free (token_header);
+        // token_header = g_strdup_printf ("X-Authorization: %s", token);
+        // headers = curl_slist_append (headers, token_header);
+        // g_free (token_header);
     }
 
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -867,13 +921,20 @@ http_put (CURL *curl, const char *url, const char *token,
     /* Disable the default "Expect: 100-continue" header */
     headers = curl_slist_append (headers, "Expect:");
 
+     AccountStore *account = g_new0 (AccountStore, 1);
+    load_account_token_from_db(account);
+    char *xauth_header =  g_strdup_printf ("X-Authorization: %s", account->token);
+    headers = curl_slist_append (headers, xauth_header);
+    
+    g_free (xauth_header);
+    g_free(account);
     if (token) {
-//        token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
-//        headers = curl_slist_append (headers, token_header);
-//        g_free (token_header);
-        token_header = g_strdup_printf ("X-Authorization: %s", token);
-        headers = curl_slist_append (headers, token_header);
-        g_free (token_header);
+       token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
+       headers = curl_slist_append (headers, token_header);
+       g_free (token_header);
+        // token_header = g_strdup_printf ("X-Authorization: %s", token);
+        // headers = curl_slist_append (headers, token_header);
+        // g_free (token_header);
     }
 
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
@@ -992,13 +1053,19 @@ http_post (CURL *curl, const char *url, const char *token,
     /* Disable the default "Expect: 100-continue" header */
     headers = curl_slist_append (headers, "Expect:");
 
+    AccountStore *account = g_new0 (AccountStore, 1);
+    load_account_token_from_db(account);
+    char *xauth_header =  g_strdup_printf ("X-Authorization: %s", account->token);
+    headers = curl_slist_append (headers, xauth_header);
+    g_free (xauth_header);
+    g_free(account);
     if (token) {
-//        token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
-//        headers = curl_slist_append (headers, token_header);
-//        g_free (token_header);
-        token_header = g_strdup_printf ("X-Authorization: %s", token);
-        headers = curl_slist_append (headers, token_header);
-        g_free (token_header);
+       token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
+       headers = curl_slist_append (headers, token_header);
+       g_free (token_header);
+        // token_header = g_strdup_printf ("X-Authorization: %s", token);
+        // headers = curl_slist_append (headers, token_header);
+        // g_free (token_header);
     }
 
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);

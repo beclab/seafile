@@ -301,7 +301,7 @@ LIB_IPHLPAPI = @LIB_IPHLPAPI@
 LIB_MAC = @LIB_MAC@
 LIB_PSAPI = @LIB_PSAPI@
 LIB_RESOLV = @LIB_RESOLV@
-LIB_RT = @LIB_RT@
+LIB_RT = 
 LIB_SHELL32 = @LIB_SHELL32@
 LIB_UUID = @LIB_UUID@
 LIB_WS32 = @LIB_WS32@
@@ -468,7 +468,7 @@ common_src = \
 seaf_daemon_SOURCES = seaf-daemon.c $(common_src)
 seaf_daemon_LDADD = $(top_builddir)/lib/libseafile_common.la \
 	@GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ @GNUTLS_LIBS@ @NETTLE_LIBS@ \
-	@LIB_RT@ @LIB_UUID@ -lsqlite3 @LIBEVENT_LIBS@ @LIBEVENT_PTHREADS_LIBS@\
+	 @LIB_UUID@ -lsqlite3 @LIBEVENT_LIBS@ @LIBEVENT_PTHREADS_LIBS@\
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/common/index/libindex.la @LIB_WS32@ @LIB_CRYPT32@ \
 	@SEARPC_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@ @CURL_LIBS@ @BPWRAPPER_LIBS@ \

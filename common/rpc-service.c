@@ -243,13 +243,11 @@ seafile_download (const char *repo_id,
                      "Worktre must be specified");
         return NULL;
     }
-
     if (!token || !email ) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Argument can't be NULL");
         return NULL;
     }
-
     return seaf_clone_manager_add_download_task (seaf->clone_mgr,
                                                  repo_id, repo_version,
                                                  repo_name, token,

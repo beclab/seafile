@@ -1,0 +1,22 @@
+{
+    "files.associations": {
+        "chrono": "c",
+        "system_error": "c",
+        "locale": "cpp",
+        "streambuf": "cpp",
+        "sstream": "cpp",
+        "__locale": "c",
+        "timer.h": "c",
+        "time.h": "c",
+        "seafile-session.h": "c",
+        "_time_t.h": "c",
+        "_timespec.h": "c",
+        "ctime": "c",
+        "array": "c",
+        "span": "c",
+        "string": "c",
+        "string_view": "c",
+        "vector": "c",
+        "commit-mgr.h": "c"
+    }
+}

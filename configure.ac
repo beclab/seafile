@@ -1,5 +1,5 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_PREREQ([2.72])
+AC_PREREQ([2.69])
 AC_INIT([seafile], [9.0.3], [info@seafile.com])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIRS([m4])

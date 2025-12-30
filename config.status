@@ -545,8 +545,8 @@ AMDEP_TRUE="" MAKE="make"
 sed_quote_subst='s/\(["`$\\]\)/\\\1/g'
 double_quote_subst='s/\(["`\\]\)/\\\1/g'
 delay_variable_subst='s/\\\\\\\\\\\$/\\\\\\$/g'
-macro_version='2.4.7'
-macro_revision='2.4.7'
+macro_version='2.5.4'
+macro_revision='2.5.4'
 enable_shared='yes'
 enable_static='yes'
 pic_mode='default'
@@ -556,11 +556,11 @@ SHELL='/bin/sh'
 ECHO='printf %s\n'
 PATH_SEPARATOR=':'
 host_alias=''
-host='x86_64-apple-darwin23.4.0'
-host_os='darwin23.4.0'
+host='x86_64-apple-darwin24.1.0'
+host_os='darwin24.1.0'
 build_alias=''
-build='x86_64-apple-darwin23.4.0'
-build_os='darwin23.4.0'
+build='x86_64-apple-darwin24.1.0'
+build_os='darwin24.1.0'
 SED='/usr/bin/sed'
 Xsed='/usr/bin/sed -e 1s/^X//'
 GREP='/usr/bin/grep'
@@ -639,7 +639,7 @@ archive_expsym_cmds='/usr/bin/sed '\''s|^|_|'\'' < $export_symbols > $output_obj
 module_cmds='$CC $allow_undefined_flag -o $lib -bundle $libobjs $deplibs $compiler_flags'
 module_expsym_cmds='/usr/bin/sed -e '\''s|^|_|'\'' < $export_symbols > $output_objdir/$libname-symbols.expsym~$CC $allow_undefined_flag -o $lib -bundle $libobjs $deplibs $compiler_flags $wl-exported_symbols_list,$output_objdir/$libname-symbols.expsym'
 with_gnu_ld='no'
-allow_undefined_flag='$wl-undefined ${wl}dynamic_lookup'
+allow_undefined_flag='$wl-undefined ${wl}dynamic_lookup $wl-no_fixup_chains'
 no_undefined_flag=''
 hardcode_libdir_flag_spec=''
 hardcode_libdir_separator=''
@@ -673,7 +673,7 @@ postuninstall_cmds=''
 finish_cmds=''
 finish_eval=''
 hardcode_into_libs='no'
-sys_lib_search_path_spec='/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/15.0.0  /usr/local/lib'
+sys_lib_search_path_spec='/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/16  /usr/local/lib'
 configure_time_dlsearch_path='/usr/local/lib /lib /usr/lib'
 configure_time_lt_sys_library_path=''
 hardcode_action='immediate'
@@ -827,8 +827,8 @@ S["LTLIBOBJS"]=""
 S["LIBOBJS"]=""
 S["COMPILE_UNIVERSAL_FALSE"]=""
 S["COMPILE_UNIVERSAL_TRUE"]="#"
-S["SSL_LIBS"]="-L/usr/local/Cellar/openssl@3/3.3.1/lib -lssl -lcrypto"
-S["SSL_CFLAGS"]="-I/usr/local/Cellar/openssl@3/3.3.1/include"
+S["SSL_LIBS"]="-L/usr/local/Cellar/openssl@3/3.4.0/lib -lssl -lcrypto"
+S["SSL_CFLAGS"]="-I/usr/local/Cellar/openssl@3/3.4.0/include"
 S["NETTLE_LIBS"]=""
 S["NETTLE_CFLAGS"]=""
 S["GNUTLS_LIBS"]=""
@@ -838,36 +838,36 @@ S["BPWRAPPER_CFLAGS"]=""
 S["HAVE_BREAKPAD_SUPPORT_FALSE"]=""
 S["HAVE_BREAKPAD_SUPPORT_TRUE"]="#"
 S["pkgpyexecdir"]="${pyexecdir}/seafile"
-S["pyexecdir"]="${PYTHON_EXEC_PREFIX}/lib/python3.10/site-packages"
+S["pyexecdir"]="${PYTHON_EXEC_PREFIX}/lib/python2.7/site-packages"
 S["pkgpythondir"]="${pythondir}/seafile"
-S["pythondir"]="${PYTHON_PREFIX}/lib/python3.10/site-packages"
+S["pythondir"]="${PYTHON_PREFIX}/lib/python2.7/site-packages"
 S["PYTHON_EXEC_PREFIX"]="${exec_prefix}"
 S["PYTHON_PREFIX"]="${prefix}"
 S["PYTHON_PLATFORM"]="darwin"
-S["PYTHON_VERSION"]="3.10"
-S["PYTHON"]="/Users/gjm/anaconda3/bin/python"
+S["PYTHON_VERSION"]="2.7"
+S["PYTHON"]="/usr/local/bin/python"
 S["WS_LIBS"]="-L/usr/local/Cellar/libwebsockets/4.3.3/lib -lwebsockets"
 S["WS_CFLAGS"]="-I/usr/local/Cellar/libwebsockets/4.3.3/include"
 S["LIBEVENT_PTHREADS_LIBS"]="-L/usr/local/Cellar/libevent/2.1.12_1/lib -levent_pthreads -levent"
-S["LIBEVENT_PTHREADS_CFLAGS"]="-D_THREAD_SAFE -I/usr/local/Cellar/libevent/2.1.12_1/include"
-S["CURL_LIBS"]="-lcurl"
+S["LIBEVENT_PTHREADS_CFLAGS"]="-I/usr/local/Cellar/libevent/2.1.12_1/include -D_THREAD_SAFE"
+S["CURL_LIBS"]="-L/usr/lib -lcurl"
 S["CURL_CFLAGS"]=""
-S["ZLIB_LIBS"]="-lz"
+S["ZLIB_LIBS"]="-L/usr/lib -lz"
 S["ZLIB_CFLAGS"]=""
 S["LIBEVENT_LIBS"]="-L/usr/local/Cellar/libevent/2.1.12_1/lib -levent"
 S["LIBEVENT_CFLAGS"]="-I/usr/local/Cellar/libevent/2.1.12_1/include"
 S["JANSSON_LIBS"]="-L/usr/local/Cellar/jansson/2.14/lib -ljansson"
 S["JANSSON_CFLAGS"]="-I/usr/local/Cellar/jansson/2.14/include"
-S["SEARPC_LIBS"]="-L/usr/local/lib -L/usr/local/Cellar/glib/2.80.4/lib -L/usr/local/opt/gettext/lib -L/usr/local/Cellar/jansson/2.14/lib -lsearpc -lgio-2.0 -lgobject-"\
-"2.0 -lglib-2.0 -lintl -ljansson"
-S["SEARPC_CFLAGS"]="-I/usr/local/include -I/usr/local/include/searpc -I/usr/local/Cellar/glib/2.80.4/include -I/usr/local/Cellar/glib/2.80.4/include/glib-2.0 -I/usr/loc"\
-"al/Cellar/glib/2.80.4/lib/glib-2.0/include -I/usr/local/opt/gettext/include -I/usr/local/Cellar/pcre2/10.44/include -I/usr/local/Cellar/jansson/2.14"\
-"/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX10.15.sdk/usr/include/ffi"
-S["GOBJECT_LIBS"]="-L/usr/local/Cellar/glib/2.80.4/lib -L/usr/local/opt/gettext/lib -lgobject-2.0 -lglib-2.0 -lintl"
-S["GOBJECT_CFLAGS"]="-I/usr/local/Cellar/glib/2.80.4/include -I/usr/local/Cellar/glib/2.80.4/include/glib-2.0 -I/usr/local/Cellar/glib/2.80.4/lib/glib-2.0/include -I/usr"\
-"/local/opt/gettext/include -I/usr/local/Cellar/pcre2/10.44/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX10.15.sdk/usr/include/ffi"
-S["GLIB2_LIBS"]="-L/usr/local/Cellar/glib/2.80.4/lib -L/usr/local/opt/gettext/lib -lglib-2.0 -lintl"
-S["GLIB2_CFLAGS"]="-I/usr/local/Cellar/glib/2.80.4/include/glib-2.0 -I/usr/local/Cellar/glib/2.80.4/lib/glib-2.0/include -I/usr/local/opt/gettext/include -I/usr/local/"\
+S["SEARPC_LIBS"]="-L/usr/local/lib -lsearpc -L/usr/local/Cellar/glib/2.82.2/lib -lgio-2.0 -lgobject-2.0 -lglib-2.0 -L/usr/local/opt/gettext/lib -lintl -L/usr/local/Ce"\
+"llar/jansson/2.14/lib -ljansson"
+S["SEARPC_CFLAGS"]="-I/usr/local/include -I/usr/local/include/searpc -I/usr/local/Cellar/glib/2.82.2/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX14.sdk/usr"\
+"/include/ffi -I/usr/local/Cellar/glib/2.82.2/include/glib-2.0 -I/usr/local/Cellar/glib/2.82.2/lib/glib-2.0/include -I/usr/local/opt/gettext/include "\
+"-I/usr/local/Cellar/pcre2/10.44/include -I/usr/local/Cellar/jansson/2.14/include"
+S["GOBJECT_LIBS"]="-L/usr/local/Cellar/glib/2.82.2/lib -lgobject-2.0 -lglib-2.0 -L/usr/local/opt/gettext/lib -lintl"
+S["GOBJECT_CFLAGS"]="-I/usr/local/Cellar/glib/2.82.2/include -I/usr/local/Cellar/glib/2.82.2/include/glib-2.0 -I/usr/local/Cellar/glib/2.82.2/lib/glib-2.0/include -I/usr"\
+"/local/opt/gettext/include -I/usr/local/Cellar/pcre2/10.44/include -I/Library/Developer/CommandLineTools/SDKs/MacOSX14.sdk/usr/include/ffi"
+S["GLIB2_LIBS"]="-L/usr/local/Cellar/glib/2.82.2/lib -lglib-2.0 -L/usr/local/opt/gettext/lib -lintl"
+S["GLIB2_CFLAGS"]="-I/usr/local/Cellar/glib/2.82.2/include/glib-2.0 -I/usr/local/Cellar/glib/2.82.2/lib/glib-2.0/include -I/usr/local/opt/gettext/include -I/usr/local/"\
 "Cellar/pcre2/10.44/include"
 S["PKG_CONFIG_LIBDIR"]=""
 S["PKG_CONFIG_PATH"]=""
@@ -914,14 +914,14 @@ S["FGREP"]="/usr/bin/grep -F"
 S["EGREP"]="/usr/bin/grep -E"
 S["GREP"]="/usr/bin/grep"
 S["SED"]="/usr/bin/sed"
-S["host_os"]="darwin23.4.0"
+S["host_os"]="darwin24.1.0"
 S["host_vendor"]="apple"
 S["host_cpu"]="x86_64"
-S["host"]="x86_64-apple-darwin23.4.0"
-S["build_os"]="darwin23.4.0"
+S["host"]="x86_64-apple-darwin24.1.0"
+S["build_os"]="darwin24.1.0"
 S["build_vendor"]="apple"
 S["build_cpu"]="x86_64"
-S["build"]="x86_64-apple-darwin23.4.0"
+S["build"]="x86_64-apple-darwin24.1.0"
 S["LIBTOOL"]="$(SHELL) $(top_builddir)/libtool"
 S["am__fastdepCC_FALSE"]="#"
 S["am__fastdepCC_TRUE"]=""
@@ -1533,19 +1533,18 @@ See 'config.log' for more details" "$LINENO" 5; }
     cat <<_LT_EOF >> "$cfgfile"
 #! $SHELL
 # Generated automatically by $as_me ($PACKAGE) $VERSION
-# Libtool was configured on host `(hostname || uname -n) 2>/dev/null | sed 1q`:
 # NOTE: Changes made to this file will be lost: look at ltmain.sh.
 
 # Provide generalized library-building support services.
 # Written by Gordon Matzigkeit, 1996
 
-# Copyright (C) 2014 Free Software Foundation, Inc.
+# Copyright (C) 2024 Free Software Foundation, Inc.
 # This is free software; see the source for copying conditions.  There is NO
 # warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 # GNU Libtool is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of of the License, or
+# the Free Software Foundation; either version 2 of the License, or
 # (at your option) any later version.
 #
 # As a special exception to the GNU General Public License, if you
@@ -1926,7 +1925,7 @@ hardcode_direct=$hardcode_direct
 
 # Set to "yes" if using DIR/libNAME\$shared_ext during linking hardcodes
 # DIR into the resulting binary and the resulting library dependency is
-# "absolute",i.e impossible to change by setting \$shlibpath_var if the
+# "absolute",i.e. impossible to change by setting \$shlibpath_var if the
 # library is relocated.
 hardcode_direct_absolute=$hardcode_direct_absolute
 

@@ -1,0 +1,314 @@
+name: Build seaf-daemon / libseafile / libsearpc
+
+on:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      libsearpc_ref:
+        description: "Git ref of haiwen/libsearpc to build against"
+        required: false
+        default: "master"
+
+env:
+  LIBSEARPC_REPO: "https://github.com/haiwen/libsearpc.git"
+  LIBSEARPC_REF: ${{ github.event.inputs.libsearpc_ref || 'master' }}
+  PKG_NAME_PREFIX: "seafile-daemon"
+
+jobs:
+  # ------------------------------------------------------------------
+  # Linux (x64 / arm64)
+  # ------------------------------------------------------------------
+  linux:
+    name: linux-${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-22.04
+          - arch: arm64
+            runner: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout seafile
+        uses: actions/checkout@v4
+        with:
+          path: seafile
+
+      - name: Checkout libsearpc
+        uses: actions/checkout@v4
+        with:
+          repository: haiwen/libsearpc
+          ref: ${{ env.LIBSEARPC_REF }}
+          path: libsearpc
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential autoconf automake libtool pkg-config \
+            intltool valac \
+            libglib2.0-dev libglib2.0-bin libjansson-dev libevent-dev \
+            libsqlite3-dev uuid-dev zlib1g-dev \
+            libssl-dev libcurl4-openssl-dev \
+            python3 python3-pip ca-certificates git
+
+      - name: Build & install libsearpc
+        working-directory: libsearpc
+        env:
+          PREFIX: ${{ github.workspace }}/install
+          PYTHON: python3
+        run: |
+          ./autogen.sh
+          ./configure --prefix="$PREFIX" --disable-compile-demo PYTHON=python3
+          make -j"$(nproc)"
+          make install
+
+      - name: Build seafile daemon
+        working-directory: seafile
+        env:
+          PREFIX: ${{ github.workspace }}/install
+          PYTHON: python3
+        run: |
+          export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PREFIX/lib64/pkgconfig:${PKG_CONFIG_PATH-}"
+          export LD_LIBRARY_PATH="$PREFIX/lib:$PREFIX/lib64:${LD_LIBRARY_PATH-}"
+          ./autogen.sh
+          ./configure --prefix="$PREFIX" --with-python3 --disable-fuse PYTHON=python3
+          make -j"$(nproc)"
+          make install
+
+      - name: Stage artifacts
+        env:
+          PREFIX: ${{ github.workspace }}/install
+          STAGING: ${{ github.workspace }}/staging
+        run: |
+          set -euxo pipefail
+          mkdir -p "$STAGING/bin" "$STAGING/lib"
+          cp -v "$PREFIX/bin/seaf-daemon" "$STAGING/bin/"
+          # Copy shared libs (libseafile / libsearpc) preserving symlinks.
+          for libdir in "$PREFIX/lib" "$PREFIX/lib64"; do
+            [ -d "$libdir" ] || continue
+            find "$libdir" -maxdepth 1 \
+                \( -name 'libseafile*.so*' -o -name 'libsearpc*.so*' \) \
+                -print -exec cp -av {} "$STAGING/lib/" \;
+          done
+          ls -lR "$STAGING"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PKG_NAME_PREFIX }}-linux-${{ matrix.arch }}
+          path: staging
+          if-no-files-found: error
+
+  # ------------------------------------------------------------------
+  # macOS (x64 / arm64)
+  # ------------------------------------------------------------------
+  macos:
+    name: macos-${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: macos-13
+            brew_prefix: /usr/local
+          - arch: arm64
+            runner: macos-14
+            brew_prefix: /opt/homebrew
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout seafile
+        uses: actions/checkout@v4
+        with:
+          path: seafile
+
+      - name: Checkout libsearpc
+        uses: actions/checkout@v4
+        with:
+          repository: haiwen/libsearpc
+          ref: ${{ env.LIBSEARPC_REF }}
+          path: libsearpc
+
+      - name: Install build dependencies (Homebrew)
+        run: |
+          # `set -e` to fail fast; allow already-installed warnings.
+          brew update
+          brew install \
+            autoconf automake libtool pkg-config \
+            intltool gettext vala \
+            glib jansson libevent \
+            sqlite openssl@3 libwebsockets \
+            curl
+          # gettext / openssl are keg-only; expose them.
+          echo "${{ matrix.brew_prefix }}/opt/gettext/bin" >> $GITHUB_PATH
+
+      - name: Configure environment
+        run: |
+          BREW_PREFIX="${{ matrix.brew_prefix }}"
+          {
+            echo "PKG_CONFIG_PATH=$BREW_PREFIX/lib/pkgconfig:$BREW_PREFIX/opt/openssl@3/lib/pkgconfig:$BREW_PREFIX/opt/curl/lib/pkgconfig:$BREW_PREFIX/opt/sqlite/lib/pkgconfig"
+            echo "ACLOCAL_PATH=$BREW_PREFIX/share/aclocal"
+            echo "LDFLAGS=-L$BREW_PREFIX/lib -L$BREW_PREFIX/opt/openssl@3/lib"
+            echo "CPPFLAGS=-I$BREW_PREFIX/include -I$BREW_PREFIX/opt/openssl@3/include"
+          } >> "$GITHUB_ENV"
+
+      - name: Build & install libsearpc
+        working-directory: libsearpc
+        env:
+          PREFIX: ${{ github.workspace }}/install
+          PYTHON: python3
+        run: |
+          ./autogen.sh
+          ./configure --prefix="$PREFIX" --disable-compile-demo PYTHON=python3
+          make -j"$(sysctl -n hw.ncpu)"
+          make install
+
+      - name: Build seafile daemon
+        working-directory: seafile
+        env:
+          PREFIX: ${{ github.workspace }}/install
+          PYTHON: python3
+        run: |
+          export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
+          export DYLD_LIBRARY_PATH="$PREFIX/lib:${DYLD_LIBRARY_PATH-}"
+          ./autogen.sh
+          ./configure --prefix="$PREFIX" --with-python3 --disable-fuse PYTHON=python3
+          make -j"$(sysctl -n hw.ncpu)"
+          make install
+
+      - name: Stage artifacts
+        env:
+          PREFIX: ${{ github.workspace }}/install
+          STAGING: ${{ github.workspace }}/staging
+        run: |
+          set -euxo pipefail
+          mkdir -p "$STAGING/bin" "$STAGING/lib"
+          cp -v "$PREFIX/bin/seaf-daemon" "$STAGING/bin/"
+          find "$PREFIX/lib" -maxdepth 1 \
+              \( -name 'libseafile*.dylib' -o -name 'libsearpc*.dylib' \) \
+              -print -exec cp -av {} "$STAGING/lib/" \;
+          ls -lR "$STAGING"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PKG_NAME_PREFIX }}-macos-${{ matrix.arch }}
+          path: staging
+          if-no-files-found: error
+
+  # ------------------------------------------------------------------
+  # Windows x64 (MSYS2 + MinGW64)
+  # ------------------------------------------------------------------
+  windows:
+    name: windows-x64
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout seafile
+        uses: actions/checkout@v4
+        with:
+          path: seafile
+
+      - name: Checkout libsearpc
+        uses: actions/checkout@v4
+        with:
+          repository: haiwen/libsearpc
+          ref: ${{ env.LIBSEARPC_REF }}
+          path: libsearpc
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel
+            git
+            autoconf
+            automake
+            libtool
+            intltool
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-pkgconf
+            mingw-w64-x86_64-vala
+            mingw-w64-x86_64-glib2
+            mingw-w64-x86_64-jansson
+            mingw-w64-x86_64-libevent
+            mingw-w64-x86_64-sqlite3
+            mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-curl
+            mingw-w64-x86_64-libwebsockets
+            mingw-w64-x86_64-zlib
+            mingw-w64-x86_64-python
+
+      - name: Build & install libsearpc
+        working-directory: libsearpc
+        env:
+          PREFIX: ${{ github.workspace }}/install
+          PYTHON: python3
+        run: |
+          set -euxo pipefail
+          # GitHub Actions sets $GITHUB_WORKSPACE in Windows-style; convert.
+          PREFIX_UNIX="$(cygpath -u "$PREFIX")"
+          ./autogen.sh
+          ./configure --prefix="$PREFIX_UNIX" --disable-compile-demo PYTHON=python3
+          make -j"$(nproc)"
+          make install
+
+      - name: Build seafile daemon
+        working-directory: seafile
+        env:
+          PREFIX: ${{ github.workspace }}/install
+          PYTHON: python3
+        run: |
+          set -euxo pipefail
+          PREFIX_UNIX="$(cygpath -u "$PREFIX")"
+          export PKG_CONFIG_PATH="$PREFIX_UNIX/lib/pkgconfig:${PKG_CONFIG_PATH-}"
+          export PATH="$PREFIX_UNIX/bin:$PATH"
+          ./autogen.sh
+          ./configure --prefix="$PREFIX_UNIX" --with-python3 --disable-fuse PYTHON=python3
+          make -j"$(nproc)"
+          make install
+
+      - name: Stage artifacts
+        env:
+          PREFIX: ${{ github.workspace }}/install
+          STAGING: ${{ github.workspace }}/staging
+        run: |
+          set -euxo pipefail
+          PREFIX_UNIX="$(cygpath -u "$PREFIX")"
+          STAGING_UNIX="$(cygpath -u "$STAGING")"
+          mkdir -p "$STAGING_UNIX/bin" "$STAGING_UNIX/lib"
+          cp -v "$PREFIX_UNIX/bin/seaf-daemon.exe" "$STAGING_UNIX/bin/"
+          # On MinGW, libtool puts shared libs (DLLs) in bin/ and import libs in lib/.
+          find "$PREFIX_UNIX/bin" -maxdepth 1 \
+              \( -name 'libseafile*.dll' -o -name 'libsearpc*.dll' \) \
+              -print -exec cp -av {} "$STAGING_UNIX/bin/" \;
+          find "$PREFIX_UNIX/lib" -maxdepth 1 \
+              \( -name 'libseafile*.dll.a' -o -name 'libsearpc*.dll.a' \) \
+              -print -exec cp -av {} "$STAGING_UNIX/lib/" \; || true
+          # Bundle the MinGW runtime DLLs that seaf-daemon links against, so the
+          # binary can be run on a clean Windows host without MSYS2 installed.
+          ldd "$STAGING_UNIX/bin/seaf-daemon.exe" \
+            | awk '{print $3}' \
+            | grep -Ei '^/(mingw64|ucrt64)/' \
+            | sort -u \
+            | while read -r dep; do
+                [ -f "$dep" ] && cp -v "$dep" "$STAGING_UNIX/bin/"
+              done || true
+          ls -lR "$STAGING_UNIX"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PKG_NAME_PREFIX }}-windows-x64
+          path: staging
+          if-no-files-found: error

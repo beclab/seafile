@@ -2,11 +2,8 @@ name: Build seaf-daemon / libseafile / libsearpc
 
 on:
   push:
-    branches:
-      - "**"
     tags:
       - "v*"
-  pull_request:
   workflow_dispatch:
     inputs:
       libsearpc_ref:

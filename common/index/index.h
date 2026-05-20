@@ -190,7 +190,7 @@ struct ondisk_cache_entry2 {
  * ctime till flags
  */
 #ifdef WIN32
-__pragma(pack(push, 1))
+#pragma pack(push, 1)
 struct ondisk_cache_entry_extended {
     struct cache_time ctime;
     struct cache_time mtime;
@@ -205,7 +205,7 @@ struct ondisk_cache_entry_extended {
     unsigned short flags2;
     char name[0]; /* more */
 };
-__pragma(pack(pop))
+#pragma pack(pop)
 #else
 struct ondisk_cache_entry_extended {
     struct cache_time ctime;

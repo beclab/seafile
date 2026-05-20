@@ -3299,13 +3299,13 @@ out:
 #define MAX_OBJECT_PACK_SIZE (1 << 20) /* 1MB */
 
 #ifdef WIN32
-__pragma(pack(push, 1))
+#pragma pack(push, 1)
 typedef struct {
     char obj_id[40];
     guint32 obj_size;
     guint8 object[0];
 } ObjectHeader;
-__pragma(pack(pop))
+#pragma pack(pop)
 #else
 typedef struct {
     char obj_id[40];

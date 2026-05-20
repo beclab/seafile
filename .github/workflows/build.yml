@@ -185,6 +185,11 @@ jobs:
         env:
           PREFIX: ${{ github.workspace }}/install
           PYTHON: python3
+          # configure.ac uses AM_INIT_AUTOMAKE([-Wall -Werror foreign]).
+          # automake 1.18+ emits new warnings (AM_PROG_AR / subdir-objects)
+          # that -Werror would turn into hard failures. Disable -Werror only
+          # at autoreconf time; leave the actual compiler warnings alone.
+          WARNINGS: no-error
         run: |
           export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
           export DYLD_LIBRARY_PATH="$PREFIX/lib:${DYLD_LIBRARY_PATH-}"
@@ -260,6 +265,19 @@ jobs:
             mingw-w64-x86_64-libwebsockets
             mingw-w64-x86_64-zlib
             mingw-w64-x86_64-python
+
+      - name: Provide libpthread.a alias for winpthreads
+        run: |
+          set -euxo pipefail
+          # MSYS2's modern winpthreads package only ships libwinpthread.a;
+          # the historical libpthread.a alias was dropped, which makes
+          # `gcc -lpthread` (and configure's AC_CHECK_LIB([pthread])) fail.
+          # Create a tiny GNU ld linker script that redirects -lpthread to
+          # -lwinpthread so existing autoconf checks keep working.
+          if [ ! -f /mingw64/lib/libpthread.a ] && [ -f /mingw64/lib/libwinpthread.a ]; then
+            printf 'INPUT(-lwinpthread)\n' > /mingw64/lib/libpthread.a
+          fi
+          ls -l /mingw64/lib/libpthread.a /mingw64/lib/libwinpthread.a || true
 
       - name: Build & install libsearpc
         working-directory: libsearpc

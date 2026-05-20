@@ -4,7 +4,11 @@ AC_INIT([seafile], [9.0.3], [info@seafile.com])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIRS([m4])
 
-AM_INIT_AUTOMAKE([-Wall -Werror foreign])
+AM_INIT_AUTOMAKE([-Wall foreign])
+
+# Required by automake >= 1.13 to silence the "non-POSIX archiver" warning
+# when building libtool convenience libraries (libcdc.la, libindex.la, ...).
+AM_PROG_AR
 
 # Checks for programs.
 AC_PROG_CC

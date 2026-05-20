@@ -185,11 +185,6 @@ jobs:
         env:
           PREFIX: ${{ github.workspace }}/install
           PYTHON: python3
-          # configure.ac uses AM_INIT_AUTOMAKE([-Wall -Werror foreign]).
-          # automake 1.18+ emits new warnings (AM_PROG_AR / subdir-objects)
-          # that -Werror would turn into hard failures. Disable -Werror only
-          # at autoreconf time; leave the actual compiler warnings alone.
-          WARNINGS: no-error
         run: |
           export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
           export DYLD_LIBRARY_PATH="$PREFIX/lib:${DYLD_LIBRARY_PATH-}"
@@ -304,11 +299,18 @@ jobs:
           export PKG_CONFIG_PATH="$PREFIX_UNIX/lib/pkgconfig:${PKG_CONFIG_PATH-}"
           export PATH="$PREFIX_UNIX/bin:$PATH"
           ./autogen.sh
-          # configure.ac unconditionally checks for uuid_generate in libc,
-          # but on MinGW the code path uses Windows' UuidCreate from Rpcrt4
-          # (see lib/utils.c). Tell configure to assume the check passed.
+          # configure.ac unconditionally probes for symbols that are either
+          # platform-specific or that AC_CHECK_LIB's stub conftest mis-detects
+          # on MinGW:
+          #   * uuid_generate: lib/utils.c uses UuidCreate (Rpcrt4) on WIN32.
+          #   * pthread_create: libsearpc happily links -lpthread on the same
+          #     toolchain, so the actual library is present; only the autoconf
+          #     probe is unreliable.
+          # Tell configure to assume both checks passed.
           ./configure --prefix="$PREFIX_UNIX" --with-python3 --disable-fuse \
-            PYTHON=python3 ac_cv_lib_c_uuid_generate=yes
+            PYTHON=python3 \
+            ac_cv_lib_c_uuid_generate=yes \
+            ac_cv_lib_pthread_pthread_create=yes
           make -j"$(nproc)"
           make install
 

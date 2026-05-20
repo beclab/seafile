@@ -299,20 +299,31 @@ jobs:
           export PKG_CONFIG_PATH="$PREFIX_UNIX/lib/pkgconfig:${PKG_CONFIG_PATH-}"
           export PATH="$PREFIX_UNIX/bin:$PATH"
           ./autogen.sh
-          # configure.ac unconditionally probes for symbols that are either
-          # platform-specific or that AC_CHECK_LIB's stub conftest mis-detects
-          # on MinGW:
-          #   * uuid_generate: lib/utils.c uses UuidCreate (Rpcrt4) on WIN32.
-          #   * pthread_create: libsearpc happily links -lpthread on the same
-          #     toolchain, so the actual library is present; only the autoconf
-          #     probe is unreliable.
-          # Tell configure to assume both checks passed.
+          # AC_CHECK_LIB's stub conftest is unreliable on MinGW (it
+          # mis-detects symbols whose import libraries are clearly available
+          # and used by libsearpc on the same toolchain). Skip those probes
+          # by priming the autoconf cache; the actual link is performed by
+          # make and will surface real linker errors if anything is missing.
+          # uuid_generate is additionally bypassed because lib/utils.c uses
+          # Windows' UuidCreate (Rpcrt4) on WIN32.
           ./configure --prefix="$PREFIX_UNIX" --with-python3 --disable-fuse \
             PYTHON=python3 \
             ac_cv_lib_c_uuid_generate=yes \
-            ac_cv_lib_pthread_pthread_create=yes
+            ac_cv_lib_pthread_pthread_create=yes \
+            ac_cv_lib_sqlite3_sqlite3_open=yes \
+            ac_cv_lib_crypto_SHA1_Init=yes
           make -j"$(nproc)"
           make install
+
+      - name: Dump config.log on failure
+        if: failure()
+        working-directory: seafile
+        run: |
+          if [ -f config.log ]; then
+            echo "::group::seafile/config.log (tail 400)"
+            tail -n 400 config.log
+            echo "::endgroup::"
+          fi
 
       - name: Stage artifacts
         env:

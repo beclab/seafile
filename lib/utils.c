@@ -18,7 +18,12 @@
 #include <Rpc.h>
 #include <shlobj.h>
 #include <psapi.h>
+/* applink.c is an MSVC-only shim shipped with the Windows OpenSSL build.
+ * MinGW links against the same MSVCRT as OpenSSL, so it isn't needed (and
+ * the file isn't shipped by mingw-w64-openssl anyway). */
+#ifdef _MSC_VER
 #include <openssl/applink.c>
+#endif
 
 #else
 #include <arpa/inet.h>

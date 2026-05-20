@@ -139,10 +139,15 @@ jobs:
           path: libsearpc
 
       - name: Install build dependencies (Homebrew)
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+          HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK: "1"
         run: |
-          # `set -e` to fail fast; allow already-installed warnings.
-          brew update
-          brew install \
+          # `--overwrite` lets brew replace files (e.g. pre-installed python3
+          # symlinks shipped on the macos-15-intel image) that would otherwise
+          # break the `brew link` step.
+          brew install --overwrite \
             autoconf automake libtool pkg-config \
             intltool gettext vala \
             glib jansson libevent \
@@ -167,7 +172,10 @@ jobs:
           PREFIX: ${{ github.workspace }}/install
           PYTHON: python3
         run: |
-          ./autogen.sh
+          # libsearpc's autogen.sh hard-codes the MacPorts aclocal path
+          # (/opt/local/share/aclocal) which doesn't exist on brew-only
+          # runners. Use autoreconf directly to honour ACLOCAL_PATH instead.
+          autoreconf -fi -I m4
           ./configure --prefix="$PREFIX" --disable-compile-demo PYTHON=python3
           make -j"$(sysctl -n hw.ncpu)"
           make install
@@ -180,7 +188,8 @@ jobs:
         run: |
           export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
           export DYLD_LIBRARY_PATH="$PREFIX/lib:${DYLD_LIBRARY_PATH-}"
-          ./autogen.sh
+          # Same rationale as libsearpc: skip autogen.sh's hard-coded paths.
+          autoreconf -fi -I m4
           ./configure --prefix="$PREFIX" --with-python3 --disable-fuse PYTHON=python3
           make -j"$(sysctl -n hw.ncpu)"
           make install
@@ -277,7 +286,11 @@ jobs:
           export PKG_CONFIG_PATH="$PREFIX_UNIX/lib/pkgconfig:${PKG_CONFIG_PATH-}"
           export PATH="$PREFIX_UNIX/bin:$PATH"
           ./autogen.sh
-          ./configure --prefix="$PREFIX_UNIX" --with-python3 --disable-fuse PYTHON=python3
+          # configure.ac unconditionally checks for uuid_generate in libc,
+          # but on MinGW the code path uses Windows' UuidCreate from Rpcrt4
+          # (see lib/utils.c). Tell configure to assume the check passed.
+          ./configure --prefix="$PREFIX_UNIX" --with-python3 --disable-fuse \
+            PYTHON=python3 ac_cv_lib_c_uuid_generate=yes
           make -j"$(nproc)"
           make install
 

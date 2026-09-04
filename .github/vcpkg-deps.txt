@@ -3,6 +3,9 @@
 #
 # One port per line. Lines starting with '#' or empty lines are ignored.
 # The job appends :arm64-windows. Overlay port libsearpc is added in the workflow.
+# pkgconf provides pkg-config.exe for CMake find_package(PkgConfig); it is also a
+# host dependency of several ports, listed here so the tool is always installed.
+pkgconf
 glib
 jansson
 sqlite3

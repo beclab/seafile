@@ -13,6 +13,13 @@ if(MSVC)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 endif()
 
+# vcpkg installs pkgconf under tools/pkgconf, which is not on PATH.
+if(NOT PKG_CONFIG_EXECUTABLE AND DEFINED ENV{VCPKG_ROOT} AND DEFINED VCPKG_TARGET_TRIPLET)
+  find_program(PKG_CONFIG_EXECUTABLE NAMES pkgconf pkg-config
+    PATHS "$ENV{VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/tools/pkgconf"
+    NO_DEFAULT_PATH)
+endif()
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0 gobject-2.0)
 pkg_check_modules(JANSSON REQUIRED IMPORTED_TARGET jansson)

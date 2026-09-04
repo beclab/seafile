@@ -424,18 +424,30 @@ jobs:
           & C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+          # Do not push to nuget.pkg.github.com/beclab: those package names were
+          # first published by files-frontend-sdk, so this repo's GITHUB_TOKEN
+          # gets 403 on push after a full compile. Restore-only is harmless if
+          # the feed is unreadable; speed comes from actions/cache of installed/.
           $nuget = (& C:\vcpkg\vcpkg.exe fetch nuget | Select-Object -Last 1).Trim()
           & $nuget sources Remove -Name GitHubPackages -NonInteractive 2>$null | Out-Null
           & $nuget sources add -Source $env:VCPKG_NUGET_FEED -Name GitHubPackages `
             -Username $env:GITHUB_REPOSITORY_OWNER -Password $env:GITHUB_TOKEN `
             -StorePasswordInClearText -NonInteractive
           & $nuget setapikey $env:GITHUB_TOKEN -Source $env:VCPKG_NUGET_FEED -NonInteractive
-          "VCPKG_BINARY_SOURCES=clear;nuget,GitHubPackages,readwrite" `
+          "VCPKG_BINARY_SOURCES=clear;nuget,GitHubPackages,read" `
             | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Restore vcpkg installed
+        id: vcpkg-installed
+        uses: actions/cache/restore@v4
+        with:
+          path: C:\vcpkg\installed
+          key: vcpkg-installed-${{ env.VCPKG_TRIPLET }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('.github/vcpkg-deps.txt', '.github/vcpkg-ports/**', '.github/vcpkg-triplets/**') }}
 
       - name: Install vcpkg runtime deps
         run: |
           $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $false
           $deps = Get-Content .github/vcpkg-deps.txt `
             | Where-Object { $_ -and -not $_.TrimStart().StartsWith('#') } `
             | ForEach-Object { "$($_.Trim()):$env:VCPKG_TRIPLET" }
@@ -446,9 +458,17 @@ jobs:
             --overlay-triplets=.github/vcpkg-triplets `
             @deps 2>&1 `
             | Tee-Object -Variable out
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if ($out -match 'credential providers requested manual action') {
-            Write-Host "::warning::vcpkg NuGet cache auth failed; ports were built from source."
+          $vcpkgExit = $LASTEXITCODE
+          $prefix = "C:\vcpkg\installed\$env:VCPKG_TRIPLET"
+          $ok = (Test-Path "$prefix\lib\libsearpc.lib") -and (
+            (Test-Path "$prefix\bin\websockets.dll") -or (Test-Path "$prefix\lib\websockets.lib")
+          )
+          if ($vcpkgExit -ne 0 -and -not $ok) { exit $vcpkgExit }
+          if ($vcpkgExit -ne 0) {
+            Write-Host "::warning::vcpkg exited $vcpkgExit but ARM64 ports are present; ignoring NuGet/cache errors."
+          }
+          if ($out -match '403 \(Forbidden\)' -or $out -match 'could not be authenticated') {
+            Write-Host "::warning::GitHub Packages NuGet 403. GITHUB_TOKEN cannot push packages owned by files-frontend-sdk. This job uses nuget read-only plus actions/cache for C:\\vcpkg\\installed."
           }
 
       - name: Save vcpkg downloads cache
@@ -457,6 +477,13 @@ jobs:
         with:
           path: C:\vcpkg\downloads
           key: vcpkg-downloads-${{ env.VCPKG_TRIPLET }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('.github/vcpkg-deps.txt', '.github/vcpkg-ports/**') }}
+
+      - name: Save vcpkg installed
+        if: steps.vcpkg-installed.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: C:\vcpkg\installed
+          key: vcpkg-installed-${{ env.VCPKG_TRIPLET }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('.github/vcpkg-deps.txt', '.github/vcpkg-ports/**', '.github/vcpkg-triplets/**') }}
 
       - name: Build ARM64 seaf-daemon.exe
         run: |

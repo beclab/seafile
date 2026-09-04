@@ -67,7 +67,17 @@ AC_CHECK_LIB([sqlite3], [sqlite3_open], [], [AC_MSG_ERROR([*** Unable to find sq
 
 # Compiler and linker flags
 if test "$MINGW32" = "yes"; then
-  CONSOLE="-Wl,--subsystem,windows -Wl,--entry,_mainCRTStartup"
+  # The daemon is a GUI-subsystem binary so no console window appears, but its
+  # entry point has to stay the console CRT startup so main() still runs. That
+  # symbol carries a leading underscore on i386 and none on x86_64. Getting it
+  # wrong is not a link error: ld only warns ("cannot find entry symbol") and
+  # then points the entry at the start of .text, so the CRT never initialises,
+  # main() never runs, and the binary exits immediately with a garbage code.
+  case "$host_cpu" in
+    x86_64) CRT_ENTRY_SYMBOL=mainCRTStartup ;;
+    *)      CRT_ENTRY_SYMBOL=_mainCRTStartup ;;
+  esac
+  CONSOLE="-Wl,--subsystem,windows -Wl,--entry,$CRT_ENTRY_SYMBOL"
   LIB_WS32=-lws2_32
   LIB_GDI32=-lgdi32
   LIB_INTL=-lintl

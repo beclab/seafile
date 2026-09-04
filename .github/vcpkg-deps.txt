@@ -1,0 +1,14 @@
+# vcpkg ports for the Windows ARM64 seaf-daemon job.
+# Hashed (with .github/vcpkg-ports/**) into the vcpkg downloads cache key.
+#
+# One port per line. Lines starting with '#' or empty lines are ignored.
+# The job appends :arm64-windows. Overlay port libsearpc is added in the workflow.
+glib
+jansson
+sqlite3
+openssl
+curl
+pthreads
+libevent
+libwebsockets
+getopt

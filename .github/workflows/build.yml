@@ -2,6 +2,8 @@ name: Build seaf-daemon / libseafile / libsearpc
 
 on:
   push:
+    branches:
+      - feat/win-arm64
     tags:
       - "v*"
   workflow_dispatch:
@@ -10,6 +12,10 @@ on:
         description: "Git ref of haiwen/libsearpc to build against"
         required: false
         default: "master"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 env:
   LIBSEARPC_REPO: "https://github.com/haiwen/libsearpc.git"
@@ -22,6 +28,7 @@ jobs:
   # ------------------------------------------------------------------
   linux:
     name: linux-${{ matrix.arch }}
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')
     strategy:
       fail-fast: false
       matrix:
@@ -108,6 +115,7 @@ jobs:
   # ------------------------------------------------------------------
   macos:
     name: macos-${{ matrix.arch }}
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')
     strategy:
       fail-fast: false
       matrix:
@@ -216,6 +224,7 @@ jobs:
   # ------------------------------------------------------------------
   windows:
     name: windows-x64
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/')
     runs-on: windows-latest
     defaults:
       run:
@@ -354,5 +363,172 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.PKG_NAME_PREFIX }}-windows-x64
+          path: staging
+          if-no-files-found: error
+
+  # ------------------------------------------------------------------
+  # Windows ARM64 (MSVC + vcpkg)
+  # ------------------------------------------------------------------
+  windows-arm64:
+    name: windows-arm64
+    runs-on: windows-11-arm
+    permissions:
+      contents: read
+      actions: write
+      packages: write
+    env:
+      VCPKG_COMMIT: '2026.06.01'
+      VCPKG_TRIPLET: arm64-windows
+      VCPKG_NUGET_FEED: 'https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json'
+      SEAF_DAEMON_EXE: 'build-seaf-daemon-arm64/bin/seaf-daemon.exe'
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout seafile
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: MSVC developer command prompt
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: arm64
+
+      - name: Restore vcpkg downloads cache
+        id: vcpkg-downloads
+        uses: actions/cache/restore@v4
+        with:
+          path: C:\vcpkg\downloads
+          key: vcpkg-downloads-${{ env.VCPKG_TRIPLET }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('.github/vcpkg-deps.txt', '.github/vcpkg-ports/**') }}
+          restore-keys: |
+            vcpkg-downloads-${{ env.VCPKG_TRIPLET }}-
+
+      - name: Bootstrap vcpkg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $false
+          if (-not (Test-Path "C:\vcpkg\.git")) {
+            git init C:\vcpkg | Out-Null
+            git -C C:\vcpkg remote add origin https://github.com/microsoft/vcpkg.git
+          }
+          git -C C:\vcpkg fetch --depth 1 origin "refs/tags/$env:VCPKG_COMMIT" 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            git -C C:\vcpkg fetch --depth 1 origin $env:VCPKG_COMMIT
+          }
+          git -C C:\vcpkg checkout --force FETCH_HEAD
+          "VCPKG_ROOT=C:\vcpkg" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          & C:\vcpkg\bootstrap-vcpkg.bat -disableMetrics
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          $nuget = (& C:\vcpkg\vcpkg.exe fetch nuget | Select-Object -Last 1).Trim()
+          & $nuget sources Remove -Name GitHubPackages -NonInteractive 2>$null | Out-Null
+          & $nuget sources add -Source $env:VCPKG_NUGET_FEED -Name GitHubPackages `
+            -Username $env:GITHUB_REPOSITORY_OWNER -Password $env:GITHUB_TOKEN `
+            -StorePasswordInClearText -NonInteractive
+          & $nuget setapikey $env:GITHUB_TOKEN -Source $env:VCPKG_NUGET_FEED -NonInteractive
+          "VCPKG_BINARY_SOURCES=clear;nuget,GitHubPackages,readwrite" `
+            | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Install vcpkg runtime deps
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $deps = Get-Content .github/vcpkg-deps.txt `
+            | Where-Object { $_ -and -not $_.TrimStart().StartsWith('#') } `
+            | ForEach-Object { "$($_.Trim()):$env:VCPKG_TRIPLET" }
+          $deps += "libsearpc:$env:VCPKG_TRIPLET"
+          Write-Host "Installing vcpkg ports: $($deps -join ', ')"
+          & C:\vcpkg\vcpkg.exe install `
+            --overlay-ports=.github/vcpkg-ports `
+            --overlay-triplets=.github/vcpkg-triplets `
+            @deps 2>&1 `
+            | Tee-Object -Variable out
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($out -match 'credential providers requested manual action') {
+            Write-Host "::warning::vcpkg NuGet cache auth failed; ports were built from source."
+          }
+
+      - name: Save vcpkg downloads cache
+        if: steps.vcpkg-downloads.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: C:\vcpkg\downloads
+          key: vcpkg-downloads-${{ env.VCPKG_TRIPLET }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('.github/vcpkg-deps.txt', '.github/vcpkg-ports/**') }}
+
+      - name: Build ARM64 seaf-daemon.exe
+        run: |
+          $ErrorActionPreference = 'Stop'
+          cmake -S .github/cmake/windows-arm64-seaf-daemon -B build-seaf-daemon-arm64 `
+            -A ARM64 `
+            -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
+            -DVCPKG_TARGET_TRIPLET=$env:VCPKG_TRIPLET `
+            -DSEAFILE_ROOT="${{ github.workspace }}"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build build-seaf-daemon-arm64 --config Release --parallel
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path $env:SEAF_DAEMON_EXE)) {
+            throw "missing $env:SEAF_DAEMON_EXE"
+          }
+          Write-Host "Built $env:SEAF_DAEMON_EXE"
+
+      - name: Stage artifacts
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Get-PEMachine([string]$p) {
+            $fs = [IO.File]::OpenRead($p); $br = New-Object IO.BinaryReader($fs)
+            $fs.Seek(0x3C, 'Begin') | Out-Null; $peoff = $br.ReadInt32()
+            $fs.Seek($peoff, 'Begin') | Out-Null; $null = $br.ReadUInt32()
+            $m = $br.ReadUInt16(); $fs.Close(); return $m
+          }
+          $want = 0xAA64
+          $staging = Join-Path $env:GITHUB_WORKSPACE 'staging'
+          $bin = Join-Path $staging 'bin'
+          $lib = Join-Path $staging 'lib'
+          New-Item -ItemType Directory -Force -Path $bin, $lib | Out-Null
+
+          Copy-Item $env:SEAF_DAEMON_EXE (Join-Path $bin 'seaf-daemon.exe') -Force
+          $got = Get-PEMachine (Join-Path $bin 'seaf-daemon.exe')
+          Write-Host ("seaf-daemon.exe PE machine 0x{0:X}" -f $got)
+          if ($got -ne $want) {
+            throw "seaf-daemon.exe is not ARM64 (got 0x$($got.ToString('X')))"
+          }
+
+          $prefix = "C:\vcpkg\installed\$env:VCPKG_TRIPLET"
+          Copy-Item "$prefix\bin\*.dll" $bin -Force
+          $searpcDll = Join-Path $prefix 'bin\libsearpc.dll'
+          if (-not (Test-Path $searpcDll)) { throw "vcpkg did not install $searpcDll" }
+          Copy-Item $searpcDll (Join-Path $bin 'libsearpc.dll') -Force
+          $dllMach = Get-PEMachine (Join-Path $bin 'libsearpc.dll')
+          Write-Host ("libsearpc.dll PE machine 0x{0:X}" -f $dllMach)
+          if ($dllMach -ne $want) {
+            throw "libsearpc.dll is not ARM64 (got 0x$($dllMach.ToString('X')))"
+          }
+
+          Copy-Item "$prefix\lib\libsearpc.lib" $lib -Force
+
+          $required = @(
+            'ffi-8.dll', 'glib-2.0-0.dll', 'gobject-2.0-0.dll',
+            'iconv-2.dll', 'intl-8.dll', 'jansson.dll',
+            'libcrypto-3-arm64.dll', 'libcurl.dll', 'libsearpc.dll',
+            'libssl-3-arm64.dll', 'pcre2-8.dll', 'pthreadVC3.dll',
+            'sqlite3.dll', 'z.dll', 'getopt.dll', 'websockets.dll', 'uv.dll'
+          )
+          $missing = $required | Where-Object { -not (Test-Path (Join-Path $bin $_)) }
+          if ($missing) {
+            Write-Host 'staged bin:'; Get-ChildItem $bin | Select-Object -ExpandProperty Name
+            throw "Missing ARM64 runtime DLLs: $($missing -join ', ')"
+          }
+          if (-not ((Test-Path (Join-Path $bin 'event.dll')) -or (Test-Path (Join-Path $bin 'event_core.dll')))) {
+            throw 'Missing libevent DLL (event.dll or event_core.dll)'
+          }
+          Get-ChildItem $staging -Recurse | Format-Table FullName, Length -AutoSize
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PKG_NAME_PREFIX }}-windows-arm64
           path: staging
           if-no-files-found: error

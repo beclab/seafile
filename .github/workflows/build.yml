@@ -312,6 +312,27 @@ jobs:
           make -j"$(nproc)"
           make install
 
+      - name: Verify seaf-daemon entry point
+        env:
+          PREFIX: ${{ github.workspace }}/install
+        run: |
+          set -euxo pipefail
+          PREFIX_UNIX="$(cygpath -u "$PREFIX")"
+          exe="$PREFIX_UNIX/bin/seaf-daemon.exe"
+          # A wrong --entry symbol is not a link error: ld warns "cannot find
+          # entry symbol" and then points the entry at the start of .text. The
+          # binary links, installs and ships, but its CRT never initialises and
+          # main() never runs -- it exits immediately with a garbage code and
+          # writes nothing to any log. Compare the two addresses instead of
+          # trusting the link to have failed.
+          start="$(objdump -f "$exe" | sed -n 's/^start address 0x//p')"
+          text="$(objdump -h "$exe" | awk '$2 == ".text" { print $4 }')"
+          echo "entry point = 0x$start, .text = 0x$text"
+          if [ "$((16#$start))" -eq "$((16#$text))" ]; then
+            echo "::error::seaf-daemon.exe entry point is the start of .text, so the CRT entry symbol was not found at link time. Check the 'cannot find entry symbol' warning in the build log and the --entry flag in configure.ac."
+            exit 1
+          fi
+
       - name: Dump config.log on failure
         if: failure()
         working-directory: seafile

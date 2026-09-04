@@ -512,13 +512,24 @@ jobs:
             throw "vcpkg did not install $lwsShare"
           }
 
+          $searpcH = Join-Path $prefix 'include\searpc.h'
+          if (-not (Test-Path $searpcH)) {
+            Write-Host '=== vcpkg include (searpc*.h missing) ==='
+            Get-ChildItem (Join-Path $prefix 'include') -Filter 'searpc*' -ErrorAction SilentlyContinue
+            Get-ChildItem (Join-Path $prefix 'lib') -Filter '*searpc*' -ErrorAction SilentlyContinue
+            throw "vcpkg overlay libsearpc did not install $searpcH"
+          }
+          Write-Host "searpc.h: $searpcH"
+
           cmake -S .github/cmake/windows-arm64-seaf-daemon -B build-seaf-daemon-arm64 `
             -A ARM64 `
             -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
+            -DCMAKE_PREFIX_PATH="$prefix" `
             -DVCPKG_TARGET_TRIPLET=$env:VCPKG_TRIPLET `
             -DPKG_CONFIG_EXECUTABLE="$pkgconf" `
             -DLibwebsockets_DIR="$lwsShare" `
             -Dlibwebsockets_DIR="$lwsShare" `
+            -DSEARPC_INCLUDE_DIR="$(Join-Path $prefix 'include')" `
             -DSEAFILE_ROOT="${{ github.workspace }}"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build build-seaf-daemon-arm64 --config Release --parallel

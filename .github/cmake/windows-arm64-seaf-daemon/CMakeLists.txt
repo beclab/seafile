@@ -28,12 +28,10 @@ pkg_check_modules(CURL REQUIRED IMPORTED_TARGET libcurl)
 pkg_check_modules(OPENSSL REQUIRED IMPORTED_TARGET openssl)
 pkg_check_modules(ZLIB REQUIRED IMPORTED_TARGET zlib)
 
-# MSVC libwebsockets has no .pc (SDK hit that first: 2b09a01). vcpkg installs
-# share/libwebsockets/LibwebsocketsConfig.cmake. CMake 3.x on NTFS accepted
-# find_package(libwebsockets); CMake 4.4 on windows-11-arm does not (looks for
-# libwebsocketsConfig.cmake). Point at the vcpkg share dir and the upstream name.
 if(DEFINED ENV{VCPKG_ROOT} AND DEFINED VCPKG_TARGET_TRIPLET)
-  set(_lws_dir "$ENV{VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/share/libwebsockets")
+  set(_vcpkg "$ENV{VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}")
+  list(PREPEND CMAKE_PREFIX_PATH "${_vcpkg}")
+  set(_lws_dir "${_vcpkg}/share/libwebsockets")
   if(EXISTS "${_lws_dir}")
     set(Libwebsockets_DIR "${_lws_dir}" CACHE PATH "vcpkg libwebsockets cmake" FORCE)
     set(libwebsockets_DIR "${_lws_dir}" CACHE PATH "vcpkg libwebsockets cmake" FORCE)
@@ -52,12 +50,12 @@ if(NOT LIBEVENT_FOUND)
   find_package(Libevent CONFIG REQUIRED)
 endif()
 
-find_path(SEARPC_INCLUDE_DIR NAMES searpc.h REQUIRED)
-find_library(SEARPC_LIBRARY NAMES searpc libsearpc REQUIRED)
-find_path(GETOPT_INCLUDE_DIR NAMES getopt.h REQUIRED)
-find_library(GETOPT_LIBRARY NAMES getopt REQUIRED)
-find_path(PTHREAD_INCLUDE_DIR NAMES pthread.h REQUIRED)
-find_library(PTHREAD_LIBRARY NAMES pthreadVC3 pthread REQUIRED)
+find_path(SEARPC_INCLUDE_DIR NAMES searpc.h HINTS "${_vcpkg}/include" REQUIRED)
+find_library(SEARPC_LIBRARY NAMES searpc libsearpc HINTS "${_vcpkg}/lib" REQUIRED)
+find_path(GETOPT_INCLUDE_DIR NAMES getopt.h HINTS "${_vcpkg}/include" REQUIRED)
+find_library(GETOPT_LIBRARY NAMES getopt HINTS "${_vcpkg}/lib" REQUIRED)
+find_path(PTHREAD_INCLUDE_DIR NAMES pthread.h HINTS "${_vcpkg}/include" REQUIRED)
+find_library(PTHREAD_LIBRARY NAMES pthreadVC3 pthread HINTS "${_vcpkg}/lib" REQUIRED)
 
 configure_file(
   "${CMAKE_CURRENT_LIST_DIR}/config.windows.h"

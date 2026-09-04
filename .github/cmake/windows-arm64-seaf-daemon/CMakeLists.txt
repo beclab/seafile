@@ -28,9 +28,21 @@ pkg_check_modules(CURL REQUIRED IMPORTED_TARGET libcurl)
 pkg_check_modules(OPENSSL REQUIRED IMPORTED_TARGET openssl)
 pkg_check_modules(ZLIB REQUIRED IMPORTED_TARGET zlib)
 
-# MSVC libwebsockets does not install a .pc (only UNIX/MINGW). vcpkg's
-# arm64-windows triplet is shared, so the imported target is websockets_shared.
-find_package(libwebsockets CONFIG REQUIRED)
+# MSVC libwebsockets has no .pc (SDK hit that first: 2b09a01). vcpkg installs
+# share/libwebsockets/LibwebsocketsConfig.cmake. CMake 3.x on NTFS accepted
+# find_package(libwebsockets); CMake 4.4 on windows-11-arm does not (looks for
+# libwebsocketsConfig.cmake). Point at the vcpkg share dir and the upstream name.
+if(DEFINED ENV{VCPKG_ROOT} AND DEFINED VCPKG_TARGET_TRIPLET)
+  set(_lws_dir "$ENV{VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/share/libwebsockets")
+  if(EXISTS "${_lws_dir}")
+    set(Libwebsockets_DIR "${_lws_dir}" CACHE PATH "vcpkg libwebsockets cmake" FORCE)
+    set(libwebsockets_DIR "${_lws_dir}" CACHE PATH "vcpkg libwebsockets cmake" FORCE)
+  endif()
+endif()
+find_package(Libwebsockets CONFIG QUIET)
+if(NOT TARGET websockets_shared)
+  find_package(libwebsockets CONFIG REQUIRED)
+endif()
 
 pkg_check_modules(LIBEVENT IMPORTED_TARGET libevent)
 if(NOT LIBEVENT_FOUND)

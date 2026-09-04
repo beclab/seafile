@@ -475,12 +475,23 @@ jobs:
           $env:PKG_CONFIG_PATH = "$(Join-Path $prefix 'lib\pkgconfig');$(Join-Path $prefix 'share\pkgconfig')"
           $env:PATH = "$pkgconfDir;$env:PATH"
           Write-Host "Using pkg-config: $pkgconf"
+          cmake --version
+
+          $lwsShare = Join-Path $prefix 'share\libwebsockets'
+          Write-Host "=== $lwsShare ==="
+          if (Test-Path $lwsShare) {
+            Get-ChildItem $lwsShare | Select-Object -ExpandProperty Name
+          } else {
+            throw "vcpkg did not install $lwsShare"
+          }
 
           cmake -S .github/cmake/windows-arm64-seaf-daemon -B build-seaf-daemon-arm64 `
             -A ARM64 `
             -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake `
             -DVCPKG_TARGET_TRIPLET=$env:VCPKG_TRIPLET `
             -DPKG_CONFIG_EXECUTABLE="$pkgconf" `
+            -DLibwebsockets_DIR="$lwsShare" `
+            -Dlibwebsockets_DIR="$lwsShare" `
             -DSEAFILE_ROOT="${{ github.workspace }}"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build build-seaf-daemon-arm64 --config Release --parallel
